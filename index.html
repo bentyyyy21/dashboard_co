@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>各省边界数据看板</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <script defer src="data/dashboard-data.js"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="toolbar" aria-label="筛选条件">
+        <div class="brand">
+          <span class="brand-mark"></span>
+          <div>
+            <h1>各省边界数据看板</h1>
+            <p id="dataStamp" hidden></p>
+          </div>
+        </div>
+        <div class="filters">
+          <label>
+            省份
+            <select id="provinceSelect"></select>
+          </label>
+          <label>
+            开始日期
+            <input id="startDate" type="date" />
+          </label>
+          <label>
+            结束日期
+            <input id="endDate" type="date" />
+          </label>
+          <div class="actions">
+            <button id="todayButton" type="button">单日</button>
+            <button id="resetButton" type="button">全量</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="metrics" id="metrics"></section>
+
+      <section class="field-panel" aria-label="边界条件选择">
+        <div class="field-heading">
+          <strong>边界条件</strong>
+          <span>勾选字段后，日前与实时图按分时序列对比展示。</span>
+        </div>
+        <div class="field-grid" id="fieldGrid"></div>
+      </section>
+
+      <section id="dashboard" class="dashboard"></section>
+      <section id="emptyState" class="empty-state" hidden>没有匹配当前筛选条件的数据。</section>
+    </main>
+  </body>
+</html>

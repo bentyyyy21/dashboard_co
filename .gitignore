@@ -1,0 +1,7 @@
+.agents/
+.codex/
+__pycache__/
+*.pyc
+*.xlsx
+.DS_Store
+Thumbs.db
