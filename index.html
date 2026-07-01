@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>各省边界数据看板</title>
     <link rel="stylesheet" href="styles.css" />
-    <script defer src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <script defer src="assets/echarts.min.js"></script>
     <script defer src="data/dashboard-data.js"></script>
     <script defer src="app.js"></script>
   </head>
@@ -19,22 +19,31 @@
             <p id="dataStamp" hidden></p>
           </div>
         </div>
-        <div class="filters">
-          <label>
-            省份
-            <select id="provinceSelect"></select>
-          </label>
-          <label>
-            开始日期
-            <input id="startDate" type="date" />
-          </label>
-          <label>
-            结束日期
-            <input id="endDate" type="date" />
-          </label>
-          <div class="actions">
-            <button id="todayButton" type="button">单日</button>
-            <button id="resetButton" type="button">全量</button>
+        <div class="top-actions">
+          <div class="org-watermark" aria-label="TCL 能源运营中心电铸业务部政策分析组">
+            <img src="assets/tcl_logo.png" alt="TCL" />
+            <div>
+              <strong>能源运营中心·电铸业务部</strong>
+              <span>政策分析组</span>
+            </div>
+          </div>
+          <div class="filters">
+            <label>
+              省份
+              <select id="provinceSelect"></select>
+            </label>
+            <label>
+              开始日期
+              <input id="startDate" type="date" />
+            </label>
+            <label>
+              结束日期
+              <input id="endDate" type="date" />
+            </label>
+            <div class="actions">
+              <button id="todayButton" type="button">单日</button>
+              <button id="resetButton" type="button">全量</button>
+            </div>
           </div>
         </div>
       </section>

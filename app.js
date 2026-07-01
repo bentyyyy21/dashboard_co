@@ -436,6 +436,9 @@ async function main() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       state.data = await response.json();
     }
+    if (!window.echarts) {
+      throw new Error("图表库未加载成功，请刷新页面或检查 assets/echarts.min.js");
+    }
     initControls();
     bindEvents();
     render();

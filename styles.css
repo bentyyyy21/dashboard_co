@@ -45,6 +45,7 @@ body {
 .toolbar {
   display: flex;
   justify-content: space-between;
+  align-items: stretch;
   gap: 24px;
   padding: 18px 22px;
 }
@@ -73,6 +74,51 @@ p {
 h1 {
   font-size: 22px;
   line-height: 1.25;
+}
+
+.top-actions {
+  display: grid;
+  justify-items: end;
+  gap: 14px;
+}
+
+.org-watermark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  min-width: 270px;
+  justify-content: flex-end;
+  border: 1px solid rgba(214, 227, 241, 0.76);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  color: rgba(36, 48, 68, 0.72);
+  text-align: right;
+  user-select: none;
+}
+
+.org-watermark img {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 4px;
+  opacity: 0.86;
+}
+
+.org-watermark strong,
+.org-watermark span {
+  display: block;
+  line-height: 1.35;
+}
+
+.org-watermark strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.org-watermark span {
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .brand p,
@@ -321,6 +367,15 @@ td:nth-child(2) {
 
   .toolbar {
     display: grid;
+  }
+
+  .top-actions {
+    justify-items: stretch;
+  }
+
+  .org-watermark {
+    justify-content: flex-start;
+    text-align: left;
   }
 
   .filters,
