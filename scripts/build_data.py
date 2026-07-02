@@ -143,6 +143,8 @@ def read_mapping() -> dict[str, Any]:
                 config[target]["stackBars"] = fields
             elif first == "折线1":
                 config[target]["line"] = fields[0]
+        if not config["day"]["line"] and config["compare"]["dayLine"]:
+            config["day"]["line"] = config["compare"]["dayLine"]
         result[province] = config
     return result
 
