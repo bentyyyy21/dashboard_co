@@ -29,10 +29,14 @@ SECTION_HINTS = {
     "day": ("日前边界数据", "日前"),
     "realtime": ("实时边界数据", "实时"),
     "price": ("分区价格", "价格"),
+    "day_price": ("日前", "分区价格", "价格"),
+    "realtime_price": ("实时", "分区价格", "价格"),
 }
 
 FIELD_ALIASES = {
     "统一结算点电价-日前": ("统一结算点价格",),
+    "日前平均出清价格": ("平均出清价格",),
+    "实时平均出清价格": ("平均出清价格",),
 }
 
 
@@ -127,9 +131,9 @@ def read_mapping() -> dict[str, Any]:
                     config["compare"]["realtimeBarPrimary"] = fields[0]
                 elif first == "实时柱子2":
                     config["compare"]["realtimeBarSecondary"] = fields[0]
-                elif first == "折线1":
+                elif first in {"折线1", "日前折线1"}:
                     config["compare"]["dayLine"] = fields[0]
-                elif first == "折线2":
+                elif first in {"折线2", "实时折线2"}:
                     config["compare"]["realtimeLine"] = fields[0]
                 continue
             target = "day" if current_group.startswith("day") else "realtime"
@@ -147,9 +151,10 @@ def detect_header(ws: Any) -> tuple[int, list[str], list[str]]:
     best_row = 1
     best_score = -1
     best_values: list[str] = []
+    section_labels = {"日前边界数据", "实时边界数据", "分区价格", "日前", "实时"}
     for row_index, row in enumerate(ws.iter_rows(min_row=1, max_row=min(ws.max_row, 8), values_only=True), start=1):
         values = [clean_text(value) for value in row]
-        score = int("日期" in values) + int("时刻" in values) + sum(1 for value in values if value and value not in {"日前边界数据", "实时边界数据", "分区价格"})
+        score = int("日期" in values) + int("时刻" in values) + sum(1 for value in values if value and value not in section_labels)
         if score > best_score:
             best_row = row_index
             best_score = score
@@ -198,7 +203,7 @@ def iter_workbook_records(path: Path, province_config: dict[str, Any]) -> tuple[
         if cfg["barPrimary"]:
             required_fields[f"{mode}.barPrimary"] = {"field": cfg["barPrimary"], "type": mode}
         if cfg["line"]:
-            required_fields[f"{mode}.line"] = {"field": cfg["line"], "type": "price"}
+            required_fields[f"{mode}.line"] = {"field": cfg["line"], "type": f"{mode}_price"}
         for field in cfg["stackBars"]:
             required_fields[f"{mode}.stack.{field}"] = {"field": field, "type": mode}
 
@@ -208,8 +213,8 @@ def iter_workbook_records(path: Path, province_config: dict[str, Any]) -> tuple[
         "compare.dayBarSecondary": ("dayBarSecondary", "day"),
         "compare.realtimeBarPrimary": ("realtimeBarPrimary", "realtime"),
         "compare.realtimeBarSecondary": ("realtimeBarSecondary", "realtime"),
-        "compare.dayLine": ("dayLine", "price"),
-        "compare.realtimeLine": ("realtimeLine", "price"),
+        "compare.dayLine": ("dayLine", "day_price"),
+        "compare.realtimeLine": ("realtimeLine", "realtime_price"),
     }
     for key, (config_key, value_type) in compare_requirements.items():
         field = compare_cfg.get(config_key)
@@ -249,12 +254,19 @@ def build_dataset() -> dict[str, Any]:
         province = province_dir.name
         if province not in mapping:
             continue
-        records: list[dict[str, Any]] = []
+        records_by_time: dict[tuple[str, str], dict[str, Any]] = {}
         files = sorted(province_dir.glob("*.xlsx"))
         for workbook_path in files:
             workbook_records, warnings = iter_workbook_records(workbook_path, mapping[province])
-            records.extend(workbook_records)
+            for record in workbook_records:
+                key = (record["date"], record["time"])
+                target = records_by_time.setdefault(key, {"date": record["date"], "time": record["time"], "values": {}})
+                for value_key, value in record["values"].items():
+                    current = target["values"].get(value_key)
+                    if current in (None, 0) or value not in (None, 0):
+                        target["values"][value_key] = value
             all_warnings.extend([f"{province}/{warning}" for warning in warnings])
+        records = list(records_by_time.values())
         records.sort(key=lambda record: (record["date"], record["time"]))
         dates = sorted({record["date"] for record in records})
         provinces[province] = {

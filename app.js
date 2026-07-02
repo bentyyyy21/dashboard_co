@@ -105,8 +105,9 @@ function initControls() {
   state.selectedProvinces = provinces.length ? [provinces[0]] : [];
 
   const dates = allDates();
-  state.startDate = dates[dates.length - 1] || "";
-  state.endDate = dates[dates.length - 1] || "";
+  const defaultDate = dates.includes("2026-05-01") ? "2026-05-01" : dates[dates.length - 1] || "";
+  state.startDate = defaultDate;
+  state.endDate = defaultDate;
   el.startDate.value = state.startDate;
   el.endDate.value = state.endDate;
 
@@ -247,8 +248,8 @@ function renderMetrics() {
       const realtimeLoadValue = record.values["realtime.barPrimary"];
       dayLoad.push(dayLoadValue);
       realtimeLoad.push(realtimeLoadValue);
-      dayPriceItems.push({ value: record.values["day.line"], weight: dayLoadValue });
-      realtimePriceItems.push({ value: record.values["realtime.line"], weight: realtimeLoadValue });
+      dayPriceItems.push({ value: record.values["day.line"] ?? record.values["compare.dayLine"], weight: dayLoadValue });
+      realtimePriceItems.push({ value: record.values["realtime.line"] ?? record.values["compare.realtimeLine"], weight: realtimeLoadValue });
     });
   });
 
