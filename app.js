@@ -99,10 +99,11 @@ function allDates() {
 
 function initControls() {
   const provinces = Object.keys(state.data.provinces);
+  const defaultProvince = provinces.includes("广东") ? "广东" : provinces[0];
   el.provinceSelect.innerHTML = provinces
-    .map((province, index) => `<option value="${province}" ${index === 0 ? "selected" : ""}>${province}</option>`)
+    .map((province) => `<option value="${province}" ${province === defaultProvince ? "selected" : ""}>${province}</option>`)
     .join("");
-  state.selectedProvinces = provinces.length ? [provinces[0]] : [];
+  state.selectedProvinces = defaultProvince ? [defaultProvince] : [];
 
   const dates = allDates();
   const defaultDate = dates.includes("2026-05-01") ? "2026-05-01" : dates[dates.length - 1] || "";
