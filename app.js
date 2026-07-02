@@ -9,8 +9,10 @@ const state = {
 
 const palette = {
   primaryBar: "#8bd076",
+  compareBars: ["#68a7dc", "#9bd26e", "#f4ba63", "#e78383"],
   stack: ["#6ea8dc", "#f4ba63", "#79c6c2", "#b68fd8", "#f28c8f", "#9bb565", "#d3a15f"],
   line: "#5b7fcf",
+  lineAlt: "#d86666",
 };
 
 const el = {
@@ -115,6 +117,17 @@ function initControls() {
       if (cfg.line) state.enabledFields.add(fieldKey(provinceName, mode, "line", cfg.line));
       cfg.stackBars.forEach((field) => state.enabledFields.add(fieldKey(provinceName, mode, "stack", field)));
     });
+    const compare = province.mapping.compare || {};
+    [
+      ["dayBarPrimary", compare.dayBarPrimary],
+      ["dayBarSecondary", compare.dayBarSecondary],
+      ["realtimeBarPrimary", compare.realtimeBarPrimary],
+      ["realtimeBarSecondary", compare.realtimeBarSecondary],
+      ["dayLine", compare.dayLine],
+      ["realtimeLine", compare.realtimeLine],
+    ].forEach(([role, field]) => {
+      if (field) state.enabledFields.add(fieldKey(provinceName, "compare", role, field));
+    });
   });
 }
 
@@ -171,6 +184,24 @@ function renderFields() {
   state.selectedProvinces.forEach((provinceName) => {
     const province = state.data.provinces[provinceName];
     if (!province) return;
+    const compare = province.mapping.compare || {};
+    const compareFields = [
+      ["dayBarPrimary", compare.dayBarPrimary, "对比-日前柱子1"],
+      ["dayBarSecondary", compare.dayBarSecondary, "对比-日前柱子2"],
+      ["realtimeBarPrimary", compare.realtimeBarPrimary, "对比-实时柱子1"],
+      ["realtimeBarSecondary", compare.realtimeBarSecondary, "对比-实时柱子2"],
+      ["dayLine", compare.dayLine, "对比-日前价格"],
+      ["realtimeLine", compare.realtimeLine, "对比-实时价格"],
+    ].filter((item) => item[1]);
+    compareFields.forEach(([role, field, label]) => {
+      const key = fieldKey(provinceName, "compare", role, field);
+      pieces.push(`
+        <label class="check" title="${provinceName} ${label} ${field}">
+          <input type="checkbox" value="${key}" ${state.enabledFields.has(key) ? "checked" : ""} />
+          ${provinceName}-${label}-${field}
+        </label>
+      `);
+    });
     ["day", "realtime"].forEach((mode) => {
       const modeName = mode === "day" ? "日前" : "实时";
       const cfg = province.mapping[mode];
@@ -239,6 +270,92 @@ function renderMetrics() {
       </article>
     `)
     .join("");
+}
+
+function addCompareBar(series, provinceName, cfg, role, name, dataKey, records, color) {
+  const field = cfg[role];
+  if (!field || !state.enabledFields.has(fieldKey(provinceName, "compare", role, field))) return;
+  series.push({
+    name,
+    type: "bar",
+    data: records.map((record) => record.values[dataKey] ?? null),
+    itemStyle: { color },
+    barMaxWidth: 14,
+  });
+}
+
+function addCompareLine(series, provinceName, cfg, role, name, dataKey, records, color) {
+  const field = cfg[role];
+  if (!field || !state.enabledFields.has(fieldKey(provinceName, "compare", role, field))) return;
+  series.push({
+    name,
+    type: "line",
+    yAxisIndex: 1,
+    data: records.map((record) => record.values[dataKey] ?? null),
+    smooth: true,
+    showSymbol: false,
+    lineStyle: { width: 2, color },
+    itemStyle: { color },
+  });
+}
+
+function buildCompareChartOption(provinceName, records) {
+  const province = state.data.provinces[provinceName];
+  const cfg = province.mapping.compare || {};
+  const xData = records.map((record) => (state.startDate === state.endDate ? record.time : `${record.date} ${record.time}`));
+  const series = [];
+
+  addCompareBar(series, provinceName, cfg, "dayBarPrimary", `日前-${cfg.dayBarPrimary || "柱子1"}`, "compare.dayBarPrimary", records, palette.compareBars[0]);
+  addCompareBar(series, provinceName, cfg, "dayBarSecondary", `日前-${cfg.dayBarSecondary || "柱子2"}`, "compare.dayBarSecondary", records, palette.compareBars[1]);
+  addCompareBar(series, provinceName, cfg, "realtimeBarPrimary", `实时-${cfg.realtimeBarPrimary || "柱子1"}`, "compare.realtimeBarPrimary", records, palette.compareBars[2]);
+  addCompareBar(series, provinceName, cfg, "realtimeBarSecondary", `实时-${cfg.realtimeBarSecondary || "柱子2"}`, "compare.realtimeBarSecondary", records, palette.compareBars[3]);
+  addCompareLine(series, provinceName, cfg, "dayLine", `日前-${cfg.dayLine || "价格"}`, "compare.dayLine", records, palette.line);
+  addCompareLine(series, provinceName, cfg, "realtimeLine", `实时-${cfg.realtimeLine || "价格"}`, "compare.realtimeLine", records, palette.lineAlt);
+
+  return {
+    animation: false,
+    tooltip: { trigger: "axis", axisPointer: { type: "cross" } },
+    legend: {
+      top: 0,
+      type: "scroll",
+      itemWidth: 14,
+      itemHeight: 8,
+      textStyle: { color: "#536176", fontSize: 11 },
+    },
+    grid: { top: 46, left: 58, right: 58, bottom: 50 },
+    xAxis: {
+      type: "category",
+      data: xData,
+      axisLabel: { color: "#728196", fontSize: 10, hideOverlap: true },
+      axisLine: { lineStyle: { color: "#cbd8e7" } },
+    },
+    yAxis: [
+      {
+        type: "value",
+        name: "MW",
+        nameTextStyle: { color: "#728196" },
+        axisLabel: { color: "#728196" },
+        splitLine: { lineStyle: { color: "#edf2f7" } },
+      },
+      {
+        type: "value",
+        name: "元/MW",
+        nameTextStyle: { color: "#728196" },
+        axisLabel: { color: "#728196" },
+        splitLine: { show: false },
+      },
+    ],
+    dataZoom: records.length > 160 ? [{ type: "inside" }, { type: "slider", height: 18, bottom: 15 }] : [{ type: "inside" }],
+    series,
+    title: series.length
+      ? undefined
+      : {
+          text: "日前实时边界对比暂无已勾选字段",
+          left: "center",
+          top: "middle",
+          textStyle: { color: "#9aa8ba", fontSize: 14, fontWeight: 400 },
+        },
+  };
 }
 
 function buildChartOption(provinceName, mode, records) {
@@ -385,6 +502,14 @@ function renderBoards() {
           <section class="mode-section">
             <div class="chart-row">
               <div class="chart-card">
+                <div class="chart-title"><h3>日前实时边界对比</h3></div>
+                <div class="chart" id="chart-${provinceName}-compare"></div>
+              </div>
+            </div>
+          </section>
+          <section class="mode-section">
+            <div class="chart-row">
+              <div class="chart-card">
                 <div class="chart-title"><h3>日前边界信息</h3></div>
                 <div class="chart" id="chart-${provinceName}-day"></div>
               </div>
@@ -411,6 +536,12 @@ function renderBoards() {
   state.selectedProvinces.forEach((provinceName) => {
     const records = getProvinceRecords(provinceName);
     if (!records.length) return;
+    const compareTarget = document.getElementById(`chart-${provinceName}-compare`);
+    if (compareTarget) {
+      const chart = echarts.init(compareTarget, null, { renderer: "canvas" });
+      chart.setOption(buildCompareChartOption(provinceName, records), true);
+      state.charts.push(chart);
+    }
     ["day", "realtime"].forEach((mode) => {
       const target = document.getElementById(`chart-${provinceName}-${mode}`);
       if (!target) return;

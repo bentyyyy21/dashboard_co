@@ -21,6 +21,8 @@ GROUP_LABELS = {
     "日前折线图": "day_line",
     "实时柱状图": "realtime_bar",
     "实时折线图": "realtime_line",
+    "日前实时对比": "compare",
+    "日前实时边界对比": "compare",
 }
 
 SECTION_HINTS = {
@@ -98,6 +100,14 @@ def read_mapping() -> dict[str, Any]:
         config = {
             "day": {"barPrimary": None, "stackBars": [], "line": None},
             "realtime": {"barPrimary": None, "stackBars": [], "line": None},
+            "compare": {
+                "dayBarPrimary": None,
+                "dayBarSecondary": None,
+                "realtimeBarPrimary": None,
+                "realtimeBarSecondary": None,
+                "dayLine": None,
+                "realtimeLine": None,
+            },
         }
         current_group = ""
         for row in ws.iter_rows(values_only=True):
@@ -107,6 +117,20 @@ def read_mapping() -> dict[str, Any]:
                 continue
             fields = [clean_text(value) for value in row[1:] if clean_text(value)]
             if not fields or not current_group:
+                continue
+            if current_group == "compare":
+                if first == "日前柱子1":
+                    config["compare"]["dayBarPrimary"] = fields[0]
+                elif first == "日前柱子2":
+                    config["compare"]["dayBarSecondary"] = fields[0]
+                elif first == "实时柱子1":
+                    config["compare"]["realtimeBarPrimary"] = fields[0]
+                elif first == "实时柱子2":
+                    config["compare"]["realtimeBarSecondary"] = fields[0]
+                elif first == "折线1":
+                    config["compare"]["dayLine"] = fields[0]
+                elif first == "折线2":
+                    config["compare"]["realtimeLine"] = fields[0]
                 continue
             target = "day" if current_group.startswith("day") else "realtime"
             if first == "柱子1":
@@ -168,21 +192,35 @@ def iter_workbook_records(path: Path, province_config: dict[str, Any]) -> tuple[
     if date_col is None or time_col is None:
         return [], [f"{path.name}: 未找到日期或时刻列"]
 
-    required_fields: dict[str, str] = {}
+    required_fields: dict[str, dict[str, str]] = {}
     for mode in ("day", "realtime"):
         cfg = province_config[mode]
         if cfg["barPrimary"]:
-            required_fields[f"{mode}.barPrimary"] = cfg["barPrimary"]
+            required_fields[f"{mode}.barPrimary"] = {"field": cfg["barPrimary"], "type": mode}
         if cfg["line"]:
-            required_fields[f"{mode}.line"] = cfg["line"]
+            required_fields[f"{mode}.line"] = {"field": cfg["line"], "type": "price"}
         for field in cfg["stackBars"]:
-            required_fields[f"{mode}.stack.{field}"] = field
+            required_fields[f"{mode}.stack.{field}"] = {"field": field, "type": mode}
+
+    compare_cfg = province_config.get("compare", {})
+    compare_requirements = {
+        "compare.dayBarPrimary": ("dayBarPrimary", "day"),
+        "compare.dayBarSecondary": ("dayBarSecondary", "day"),
+        "compare.realtimeBarPrimary": ("realtimeBarPrimary", "realtime"),
+        "compare.realtimeBarSecondary": ("realtimeBarSecondary", "realtime"),
+        "compare.dayLine": ("dayLine", "price"),
+        "compare.realtimeLine": ("realtimeLine", "price"),
+    }
+    for key, (config_key, value_type) in compare_requirements.items():
+        field = compare_cfg.get(config_key)
+        if field:
+            required_fields[key] = {"field": field, "type": value_type}
 
     column_map: dict[str, int] = {}
     warnings: list[str] = []
-    for key, field in required_fields.items():
-        mode = key.split(".", 1)[0]
-        value_type = "price" if key.endswith(".line") else mode
+    for key, meta in required_fields.items():
+        field = meta["field"]
+        value_type = meta["type"]
         index = choose_column(field, columns, value_type)
         if index is None:
             warnings.append(f"{path.name}: 字段缺失，已按 0 填充 - {field}")
