@@ -183,6 +183,37 @@ def choose_column(field: str, columns: list[dict[str, Any]], mode: str) -> int |
     return exact[0]["index"]
 
 
+def iter_long_price_records(path: Path, columns: list[dict[str, Any]], header_row: int, province_config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+    column_by_field = {column["field"]: column["index"] for column in columns}
+    required = {"日期", "时刻", "电价类型", "节点均价"}
+    if not required.issubset(column_by_field):
+        return [], []
+
+    price_map = {
+        "日前": [
+            ("day.line", province_config["day"].get("line")),
+            ("compare.dayLine", province_config.get("compare", {}).get("dayLine")),
+        ],
+        "实时": [
+            ("realtime.line", province_config["realtime"].get("line")),
+            ("compare.realtimeLine", province_config.get("compare", {}).get("realtimeLine")),
+        ],
+    }
+    records: list[dict[str, Any]] = []
+    workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    ws = workbook[workbook.sheetnames[0]]
+    for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
+        row_date = normalize_date(row[column_by_field["日期"]] if column_by_field["日期"] < len(row) else None)
+        row_time = normalize_time(row[column_by_field["时刻"]] if column_by_field["时刻"] < len(row) else None)
+        price_type = clean_text(row[column_by_field["电价类型"]] if column_by_field["电价类型"] < len(row) else None)
+        value = json_value(row[column_by_field["节点均价"]] if column_by_field["节点均价"] < len(row) else None)
+        if not row_date or not row_time or price_type not in price_map:
+            continue
+        values = {key: value for key, field in price_map[price_type] if field}
+        records.append({"date": row_date, "time": row_time, "values": values})
+    return records, []
+
+
 def iter_workbook_records(path: Path, province_config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
     workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
     ws = workbook[workbook.sheetnames[0]]
@@ -196,6 +227,10 @@ def iter_workbook_records(path: Path, province_config: dict[str, Any]) -> tuple[
     time_col = choose_column("时刻", columns, "day")
     if date_col is None or time_col is None:
         return [], [f"{path.name}: 未找到日期或时刻列"]
+
+    long_price_records, long_price_warnings = iter_long_price_records(path, columns, header_row, province_config)
+    if long_price_records:
+        return long_price_records, long_price_warnings
 
     required_fields: dict[str, dict[str, str]] = {}
     for mode in ("day", "realtime"):
