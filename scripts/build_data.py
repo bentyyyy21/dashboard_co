@@ -95,6 +95,24 @@ def normalize_time(value: Any) -> str | None:
     return text
 
 
+def normalize_datetime_parts(value: Any) -> tuple[str | None, str | None]:
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d"), value.strftime("%H:%M")
+    text = clean_text(value)
+    if not text:
+        return None, None
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S"):
+        try:
+            parsed = datetime.strptime(text, fmt)
+            return parsed.strftime("%Y-%m-%d"), parsed.strftime("%H:%M")
+        except ValueError:
+            pass
+    if "T" in text or " " in text:
+        date_text, _, time_text = text.replace("T", " ").partition(" ")
+        return normalize_date(date_text), normalize_time(time_text)
+    return normalize_date(value), None
+
+
 def read_mapping() -> dict[str, Any]:
     workbook = openpyxl.load_workbook(MAPPING_FILE, read_only=True, data_only=True)
     result: dict[str, Any] = {}
@@ -216,6 +234,38 @@ def iter_long_price_records(path: Path, columns: list[dict[str, Any]], header_ro
     return records, []
 
 
+def iter_wide_datetime_price_records(path: Path, columns: list[dict[str, Any]], header_row: int, province_config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+    column_by_field = {column["field"]: column["index"] for column in columns}
+    datetime_col = column_by_field.get("datetime")
+    day_col = column_by_field.get("日前_区域节点均价")
+    realtime_col = column_by_field.get("实时_区域节点均价")
+    if datetime_col is None or (day_col is None and realtime_col is None):
+        return [], []
+
+    price_fields = [
+        (day_col, ("day.line", province_config["day"].get("line")), ("compare.dayLine", province_config.get("compare", {}).get("dayLine"))),
+        (realtime_col, ("realtime.line", province_config["realtime"].get("line")), ("compare.realtimeLine", province_config.get("compare", {}).get("realtimeLine"))),
+    ]
+    records: list[dict[str, Any]] = []
+    workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    ws = workbook[workbook.sheetnames[0]]
+    for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
+        row_date, row_time = normalize_datetime_parts(row[datetime_col] if datetime_col < len(row) else None)
+        if not row_date or not row_time:
+            continue
+        values: dict[str, Any] = {}
+        for column_index, *targets in price_fields:
+            if column_index is None:
+                continue
+            value = json_value(row[column_index] if column_index < len(row) else None)
+            for key, field in targets:
+                if field:
+                    values[key] = value
+        if values:
+            records.append({"date": row_date, "time": row_time, "values": values})
+    return records, []
+
+
 def iter_workbook_records(path: Path, province_config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
     workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
     ws = workbook[workbook.sheetnames[0]]
@@ -225,6 +275,10 @@ def iter_workbook_records(path: Path, province_config: dict[str, Any]) -> tuple[
         for index, header in enumerate(headers)
         if header
     ]
+    wide_price_records, wide_price_warnings = iter_wide_datetime_price_records(path, columns, header_row, province_config)
+    if wide_price_records:
+        return wide_price_records, wide_price_warnings
+
     date_col = choose_column("日期", columns, "day")
     time_col = choose_column("时刻", columns, "day")
     if date_col is None or time_col is None:
