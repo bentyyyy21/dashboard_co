@@ -97,6 +97,13 @@ function allDates() {
     .sort();
 }
 
+function latestMonthFirstDate(dates) {
+  const lastDate = dates[dates.length - 1] || "";
+  if (!lastDate) return "";
+  const latestMonth = lastDate.slice(0, 7);
+  return dates.find((date) => date.startsWith(latestMonth)) || lastDate;
+}
+
 function initControls() {
   const provinces = Object.keys(state.data.provinces);
   const defaultProvince = provinces.includes("广东") ? "广东" : provinces[0];
@@ -106,7 +113,7 @@ function initControls() {
   state.selectedProvinces = defaultProvince ? [defaultProvince] : [];
 
   const dates = allDates();
-  const defaultDate = dates.includes("2026-05-01") ? "2026-05-01" : dates[dates.length - 1] || "";
+  const defaultDate = latestMonthFirstDate(dates);
   state.startDate = defaultDate;
   state.endDate = defaultDate;
   el.startDate.value = state.startDate;
