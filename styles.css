@@ -416,11 +416,15 @@ td:nth-child(2) {
   right: 22px;
   bottom: 20px;
   z-index: 20;
-  width: min(310px, calc(100vw - 32px));
-  padding: 10px 13px 9px 15px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: min(276px, calc(100vw - 32px));
+  padding: 9px 12px 8px 14px;
   border: 1px solid rgba(188, 213, 236, 0.76);
-  border-left: 4px solid var(--red);
-  border-radius: 8px;
+  border-left: 3px solid var(--red);
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.72);
   box-shadow: 0 10px 24px rgba(30, 75, 116, 0.14);
   color: var(--deep-blue);
@@ -429,30 +433,34 @@ td:nth-child(2) {
   backdrop-filter: blur(6px);
 }
 
-.watermark-head {
-  display: flex;
-  align-items: center;
-  gap: 9px;
+.watermark-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.watermark-copy {
   min-width: 0;
 }
 
-.watermark-head img {
-  width: 40px;
-  height: 40px;
-  border-radius: 5px;
-  object-fit: cover;
+.watermark-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .watermark-divider {
   width: 1px;
-  height: 26px;
+  height: 20px;
   background: rgba(74, 113, 145, 0.38);
 }
 
 .watermark-head strong {
   color: var(--red);
   font-size: 13px;
-  line-height: 1.2;
+  line-height: 1.15;
   font-weight: 900;
 }
 
@@ -460,24 +468,24 @@ td:nth-child(2) {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 6px;
-  margin-top: 7px;
+  gap: 4px;
+  margin-top: 3px;
   color: #1f466b;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
 .watermark-values span + span {
-  padding-left: 6px;
+  padding-left: 4px;
   border-left: 1px solid rgba(31, 70, 107, 0.28);
 }
 
 .brand-watermark p {
-  margin-top: 7px;
+  margin-top: 4px;
   color: #44647f;
   font-size: 11px;
-  line-height: 1.3;
+  line-height: 1.2;
   text-align: right;
 }
 
@@ -588,14 +596,16 @@ td:nth-child(2) {
   .brand-watermark {
     right: 10px;
     bottom: 10px;
-    width: min(270px, calc(100vw - 20px));
-    padding: 9px 11px 8px 12px;
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 8px;
+    width: min(252px, calc(100vw - 20px));
+    padding: 8px 10px 7px 11px;
     border-left-width: 3px;
   }
 
-  .watermark-head img {
-    width: 40px;
-    height: 40px;
+  .watermark-logo {
+    width: 36px;
+    height: 36px;
   }
 
   .watermark-head strong {
@@ -603,12 +613,12 @@ td:nth-child(2) {
   }
 
   .watermark-values {
-    gap: 5px;
-    font-size: 11px;
+    gap: 3px;
+    font-size: 10px;
   }
 
   .watermark-values span + span {
-    padding-left: 5px;
+    padding-left: 3px;
   }
 
   .brand-watermark p {
