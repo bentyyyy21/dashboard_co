@@ -416,8 +416,8 @@ td:nth-child(2) {
   right: 22px;
   bottom: 20px;
   z-index: 20;
-  width: min(360px, calc(100vw - 32px));
-  padding: 13px 16px 11px 18px;
+  width: min(310px, calc(100vw - 32px));
+  padding: 10px 13px 9px 15px;
   border: 1px solid rgba(188, 213, 236, 0.76);
   border-left: 4px solid var(--red);
   border-radius: 8px;
@@ -432,26 +432,26 @@ td:nth-child(2) {
 .watermark-head {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 9px;
   min-width: 0;
 }
 
 .watermark-head img {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 5px;
   object-fit: cover;
 }
 
 .watermark-divider {
   width: 1px;
-  height: 28px;
+  height: 26px;
   background: rgba(74, 113, 145, 0.38);
 }
 
 .watermark-head strong {
   color: var(--red);
-  font-size: 16px;
+  font-size: 13px;
   line-height: 1.2;
   font-weight: 900;
 }
@@ -459,22 +459,22 @@ td:nth-child(2) {
 .watermark-values {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 9px;
-  margin-top: 9px;
+  justify-content: flex-start;
+  gap: 6px;
+  margin-top: 7px;
   color: #1f466b;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1.25;
 }
 
 .watermark-values span + span {
-  padding-left: 9px;
+  padding-left: 6px;
   border-left: 1px solid rgba(31, 70, 107, 0.28);
 }
 
 .brand-watermark p {
-  margin-top: 8px;
+  margin-top: 7px;
   color: #44647f;
   font-size: 11px;
   line-height: 1.3;
@@ -588,30 +588,30 @@ td:nth-child(2) {
   .brand-watermark {
     right: 10px;
     bottom: 10px;
-    width: min(290px, calc(100vw - 20px));
-    padding: 10px 12px 9px 13px;
+    width: min(270px, calc(100vw - 20px));
+    padding: 9px 11px 8px 12px;
     border-left-width: 3px;
   }
 
   .watermark-head img {
-    width: 30px;
-    height: 30px;
+    width: 40px;
+    height: 40px;
   }
 
   .watermark-head strong {
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .watermark-values {
-    gap: 6px;
+    gap: 5px;
     font-size: 11px;
   }
 
   .watermark-values span + span {
-    padding-left: 6px;
+    padding-left: 5px;
   }
 
   .brand-watermark p {
-    font-size: 10px;
+    font-size: 11px;
   }
 }
