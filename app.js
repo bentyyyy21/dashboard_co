@@ -22,11 +22,18 @@ const el = {
   endDate: document.getElementById("endDate"),
   todayButton: document.getElementById("todayButton"),
   resetButton: document.getElementById("resetButton"),
-  metrics: document.getElementById("metrics"),
+  metrics: document.getElementById("metricsSection"),
+  moduleLinks: Array.from(document.querySelectorAll(".module-nav a")),
   fieldGrid: document.getElementById("fieldGrid"),
-  dashboard: document.getElementById("dashboard"),
+  dashboard: document.getElementById("dashboardSection"),
   emptyState: document.getElementById("emptyState"),
 };
+
+function setActiveModule(sectionId) {
+  el.moduleLinks.forEach((link) => {
+    link.classList.toggle("active", link.dataset.section === sectionId);
+  });
+}
 
 function fmtNumber(value, digits = 2) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
@@ -182,6 +189,32 @@ function bindEvents() {
     el.endDate.value = state.endDate;
     render();
   });
+
+  el.moduleLinks.forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const target = document.getElementById(link.dataset.section);
+      if (!target) return;
+      setActiveModule(link.dataset.section);
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  if ("IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible) setActiveModule(visible.target.id);
+      },
+      { rootMargin: "-120px 0px -55% 0px", threshold: [0.1, 0.35, 0.6] }
+    );
+    el.moduleLinks.forEach((link) => {
+      const target = document.getElementById(link.dataset.section);
+      if (target) observer.observe(target);
+    });
+  }
 
   window.addEventListener("resize", () => {
     state.charts.forEach((chart) => chart.resize());

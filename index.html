@@ -13,46 +13,46 @@
   </head>
   <body>
     <main class="shell">
-      <section class="toolbar" aria-label="筛选条件">
-        <div class="brand">
-          <span class="brand-mark"></span>
-          <div>
-            <h1><span class="title-brand">TCL 光伏科技</span><span>各省边界数据看板</span></h1>
-            <div class="org-watermark" aria-label="TCL 能源运营中心电碳业务部政策分析组">
-              <img src="assets/tcl_logo.png" alt="TCL" />
-              <div>
-                <strong>能源运营中心·电碳业务部</strong>
-                <span>政策分析组</span>
-              </div>
-            </div>
+      <header class="brand-nav" aria-label="TCL 光伏科技品牌导航">
+        <div class="brand-block">
+          <img class="brand-logo" src="assets/tcl_logo.png" alt="TCL" />
+          <div class="brand-copy">
+            <h1><span class="title-brand">TCL 光伏科技</span><span class="page-title">各省边界数据看板</span></h1>
+            <p>能源运营中心·电碳业务部 | 政策分析组</p>
             <p id="dataStamp" hidden></p>
           </div>
         </div>
-        <div class="top-actions">
-          <div class="filters">
-            <label>
-              省份
-              <select id="provinceSelect"></select>
-            </label>
-            <label>
-              开始日期
-              <input id="startDate" type="date" />
-            </label>
-            <label>
-              结束日期
-              <input id="endDate" type="date" />
-            </label>
-            <div class="actions">
-              <button id="todayButton" type="button">单日</button>
-              <button id="resetButton" type="button">全量</button>
-            </div>
+        <nav class="module-nav" aria-label="模块导航">
+          <a class="active" href="#metricsSection" data-section="metricsSection">指标概览</a>
+          <a href="#fieldsSection" data-section="fieldsSection">边界条件</a>
+          <a href="#dashboardSection" data-section="dashboardSection">省份看板</a>
+        </nav>
+      </header>
+
+      <section class="control-panel" aria-label="筛选条件">
+        <div class="filters">
+          <label>
+            省份
+            <select id="provinceSelect"></select>
+          </label>
+          <label>
+            开始日期
+            <input id="startDate" type="date" />
+          </label>
+          <label>
+            结束日期
+            <input id="endDate" type="date" />
+          </label>
+          <div class="actions">
+            <button id="todayButton" type="button">单日</button>
+            <button id="resetButton" type="button">全量</button>
           </div>
         </div>
       </section>
 
-      <section class="metrics" id="metrics"></section>
+      <section class="metrics" id="metricsSection"></section>
 
-      <section class="field-panel" aria-label="边界条件选择">
+      <section class="field-panel" id="fieldsSection" aria-label="边界条件选择">
         <div class="field-heading">
           <strong>边界条件</strong>
           <span>勾选字段后，日前与实时图按分时序列对比展示。</span>
@@ -60,8 +60,22 @@
         <div class="field-grid" id="fieldGrid"></div>
       </section>
 
-      <section id="dashboard" class="dashboard"></section>
+      <section id="dashboardSection" class="dashboard"></section>
       <section id="emptyState" class="empty-state" hidden>没有匹配当前筛选条件的数据。</section>
     </main>
+    <aside class="brand-watermark" aria-label="TCL 光伏科技品牌价值">
+      <div class="watermark-head">
+        <img src="assets/tcl_logo.png" alt="TCL" />
+        <span class="watermark-divider"></span>
+        <strong>TCL 光伏科技</strong>
+      </div>
+      <div class="watermark-values">
+        <span>变革</span>
+        <span>创新</span>
+        <span>当责</span>
+        <span>卓越</span>
+      </div>
+      <p>如有问题咨询政策分析组</p>
+    </aside>
   </body>
 </html>
