@@ -2,6 +2,8 @@ const state = {
   data: null,
   energyMixData: null,
   selectedProvinces: [],
+  selectedEnergyProvince: "",
+  selectedEnergyYear: "",
   startDate: "",
   endDate: "",
   enabledFields: new Set(),
@@ -21,6 +23,8 @@ const palette = {
 const el = {
   stamp: document.getElementById("dataStamp"),
   provinceSelect: document.getElementById("provinceSelect"),
+  energyProvinceSelect: document.getElementById("energyProvinceSelect"),
+  energyYearSelect: document.getElementById("energyYearSelect"),
   startDate: document.getElementById("startDate"),
   endDate: document.getElementById("endDate"),
   todayButton: document.getElementById("todayButton"),
@@ -113,6 +117,14 @@ function allDates() {
     .sort();
 }
 
+function energyYears() {
+  return Object.keys(state.energyMixData?.years || {}).sort();
+}
+
+function energyProvinces(year = state.selectedEnergyYear) {
+  return Object.keys(state.energyMixData?.years?.[year]?.provinces || {});
+}
+
 function latestMonthFirstDate(dates) {
   const lastDate = dates[dates.length - 1] || "";
   if (!lastDate) return "";
@@ -127,6 +139,19 @@ function initControls() {
     .map((province) => `<option value="${province}" ${province === defaultProvince ? "selected" : ""}>${province}</option>`)
     .join("");
   state.selectedProvinces = defaultProvince ? [defaultProvince] : [];
+
+  const years = energyYears();
+  const defaultEnergyYear = state.energyMixData?.defaultYear || years[years.length - 1] || "";
+  state.selectedEnergyYear = defaultEnergyYear;
+  el.energyYearSelect.innerHTML = years
+    .map((year) => `<option value="${year}" ${year === defaultEnergyYear ? "selected" : ""}>${year}</option>`)
+    .join("");
+  const mixProvinces = energyProvinces(defaultEnergyYear);
+  const defaultEnergyProvince = mixProvinces.includes("广东") ? "广东" : mixProvinces[0] || "";
+  state.selectedEnergyProvince = defaultEnergyProvince;
+  el.energyProvinceSelect.innerHTML = mixProvinces
+    .map((province) => `<option value="${province}" ${province === defaultEnergyProvince ? "selected" : ""}>${province}</option>`)
+    .join("");
 
   const dates = allDates();
   const defaultDate = latestMonthFirstDate(dates);
@@ -160,6 +185,23 @@ function bindEvents() {
   el.provinceSelect.addEventListener("change", () => {
     state.selectedProvinces = el.provinceSelect.value ? [el.provinceSelect.value] : [];
     render();
+  });
+
+  el.energyProvinceSelect.addEventListener("change", () => {
+    state.selectedEnergyProvince = el.energyProvinceSelect.value;
+    renderEnergyMix();
+  });
+
+  el.energyYearSelect.addEventListener("change", () => {
+    state.selectedEnergyYear = el.energyYearSelect.value;
+    const mixProvinces = energyProvinces(state.selectedEnergyYear);
+    if (!mixProvinces.includes(state.selectedEnergyProvince)) {
+      state.selectedEnergyProvince = mixProvinces.includes("广东") ? "广东" : mixProvinces[0] || "";
+    }
+    el.energyProvinceSelect.innerHTML = mixProvinces
+      .map((province) => `<option value="${province}" ${province === state.selectedEnergyProvince ? "selected" : ""}>${province}</option>`)
+      .join("");
+    renderEnergyMix();
   });
 
   el.startDate.addEventListener("change", () => {
@@ -344,17 +386,18 @@ function renderEnergyMix() {
   state.energyCharts = [];
   if (!el.energyMixGrid) return;
 
-  const provinceName = state.selectedProvinces[0];
-  const mix = state.energyMixData?.provinces?.[provinceName];
+  const provinceName = state.selectedEnergyProvince;
+  const year = state.selectedEnergyYear;
+  const mix = state.energyMixData?.years?.[year]?.provinces?.[provinceName];
   if (!mix) {
     el.energyMixMeta.textContent = "";
-    el.energyMixGrid.innerHTML = `<div class="mix-empty">暂无 ${provinceName || "当前省份"} 的装机与发电量数据。</div>`;
+    el.energyMixGrid.innerHTML = `<div class="mix-empty">暂无 ${year || "当前年份"} ${provinceName || "当前省份"} 的装机与发电量数据。</div>`;
     return;
   }
 
   const capacityUnit = state.energyMixData.units?.capacity || "万千瓦";
   const generationUnit = state.energyMixData.units?.generation || "亿千瓦时";
-  el.energyMixMeta.textContent = `${mix.region || ""} · ${mix.name}`;
+  el.energyMixMeta.textContent = `${year}年 · ${mix.region || ""} · ${mix.name}`;
   el.energyMixGrid.innerHTML = `
     <article class="mix-card">
       <div class="mix-card-head">

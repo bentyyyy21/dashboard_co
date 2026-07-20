@@ -15,8 +15,6 @@ DATA_DIR = ROOT / "data"
 OUTPUT_FILE = DATA_DIR / "energy-mix-data.json"
 OUTPUT_JS_FILE = DATA_DIR / "energy-mix-data.js"
 
-SHEET_NAME = "2025年"
-
 CAPACITY_FIELDS = [
     ("燃煤", "燃煤（万千瓦）"),
     ("水电", "水电(万千瓦)"),
@@ -64,9 +62,14 @@ def build_series(row: tuple[Any, ...], header_map: dict[str, int], fields: list[
     return series
 
 
-def build_dataset() -> dict[str, Any]:
-    workbook = openpyxl.load_workbook(SOURCE_FILE, read_only=True, data_only=True)
-    ws = workbook[SHEET_NAME]
+def parse_year(sheet_name: str) -> str:
+    digits = "".join(ch for ch in sheet_name if ch.isdigit())
+    return digits[:4] if len(digits) >= 4 else sheet_name
+
+
+def build_year_dataset(workbook: Any, sheet_name: str) -> dict[str, Any]:
+    year = parse_year(sheet_name)
+    ws = workbook[sheet_name]
     headers = [clean_text(value) for value in next(ws.iter_rows(min_row=2, max_row=2, values_only=True))]
     header_map = {header: index for index, header in enumerate(headers) if header}
     province_col = header_map["省份/电网区域"]
@@ -84,24 +87,34 @@ def build_dataset() -> dict[str, Any]:
         provinces[province] = {
             "name": province,
             "region": current_region,
+            "year": year,
             "capacityTotal": number_value(row[header_map["总装机容量(万千瓦)"]]),
             "generationTotal": number_value(row[header_map["总发电量(亿千瓦时)"]]),
             "capacity": capacity,
             "generation": generation,
         }
+    return {"year": year, "sheet": sheet_name, "provinces": provinces}
+
+
+def build_dataset() -> dict[str, Any]:
+    workbook = openpyxl.load_workbook(SOURCE_FILE, read_only=True, data_only=True)
+    year_items = [build_year_dataset(workbook, sheet_name) for sheet_name in workbook.sheetnames if "年" in sheet_name]
+    years = {item["year"]: {"sheet": item["sheet"], "provinces": item["provinces"]} for item in year_items}
+    year_order = sorted(years)
 
     return {
         "generatedAt": datetime.now().isoformat(timespec="seconds"),
         "source": {
             "file": SOURCE_FILE.name,
-            "sheet": SHEET_NAME,
+            "sheets": [item["sheet"] for item in year_items],
             "note": "由 scripts/build_energy_mix.py 根据各省装机与发电量.xlsx 生成。",
         },
         "units": {
             "capacity": "万千瓦",
             "generation": "亿千瓦时",
         },
-        "provinces": provinces,
+        "defaultYear": year_order[-1] if year_order else "",
+        "years": years,
     }
 
 
@@ -111,7 +124,8 @@ def main() -> None:
     json_text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     OUTPUT_FILE.write_text(json_text, encoding="utf-8")
     OUTPUT_JS_FILE.write_text(f"window.ENERGY_MIX_DATA={json_text};\n", encoding="utf-8")
-    print(f"wrote {OUTPUT_FILE.relative_to(ROOT)} and {OUTPUT_JS_FILE.relative_to(ROOT)} with {len(payload['provinces'])} provinces")
+    count = sum(len(item["provinces"]) for item in payload["years"].values())
+    print(f"wrote {OUTPUT_FILE.relative_to(ROOT)} and {OUTPUT_JS_FILE.relative_to(ROOT)} with {len(payload['years'])} years and {count} province-year records")
 
 
 if __name__ == "__main__":
