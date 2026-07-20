@@ -86,6 +86,13 @@ function sumSeries(series) {
   return series.reduce((sum, item) => sum + (Number.isFinite(Number(item.value)) ? Number(item.value) : 0), 0);
 }
 
+function selectedSeriesTotal(series, selected = {}) {
+  return series.reduce((sum, item) => {
+    if (selected[item.name] === false) return sum;
+    return sum + (Number.isFinite(Number(item.value)) ? Number(item.value) : 0);
+  }, 0);
+}
+
 function sumFields(record, fields, mode) {
   return fields.reduce((sum, field) => {
     const value = record.values[`${mode}.stack.${field}`];
@@ -328,6 +335,8 @@ function renderFields() {
 function buildMixPieOption(title, series, total, unit) {
   const fallbackTotal = sumSeries(series);
   const displayTotal = total || fallbackTotal;
+  const selectedTotal = selectedSeriesTotal(series);
+  const selectedRatio = displayTotal ? (selectedTotal / displayTotal) * 100 : 0;
   return {
     animation: true,
     color: palette.pies,
@@ -345,8 +354,8 @@ function buildMixPieOption(title, series, total, unit) {
       textStyle: { color: "#536176", fontSize: 11 },
     },
     title: {
-      text: fmtNumber(displayTotal, 0),
-      subtext: unit,
+      text: fmtNumber(selectedTotal, 0),
+      subtext: `占总 ${fmtNumber(selectedRatio, 1)}% | ${unit}`,
       left: "29%",
       top: "42%",
       textAlign: "center",
@@ -367,7 +376,7 @@ function buildMixPieOption(title, series, total, unit) {
         },
         label: {
           color: "#344156",
-          formatter: "{b}\n{d}%",
+          formatter: ({ name, value, percent }) => `${name}\n${fmtNumber(value, 0)} ${unit}\n${fmtNumber(percent, 1)}%`,
           fontSize: 11,
         },
         labelLine: {
@@ -379,6 +388,19 @@ function buildMixPieOption(title, series, total, unit) {
       },
     ],
   };
+}
+
+function updateMixPieCenter(chart, series, total, unit, selected) {
+  const fallbackTotal = sumSeries(series);
+  const displayTotal = total || fallbackTotal;
+  const selectedTotal = selectedSeriesTotal(series, selected);
+  const selectedRatio = displayTotal ? (selectedTotal / displayTotal) * 100 : 0;
+  chart.setOption({
+    title: {
+      text: fmtNumber(selectedTotal, 0),
+      subtext: `占总 ${fmtNumber(selectedRatio, 1)}% | ${unit}`,
+    },
+  });
 }
 
 function renderEnergyMix() {
@@ -423,6 +445,9 @@ function renderEnergyMix() {
     if (!target) return;
     const chart = echarts.init(target, null, { renderer: "canvas" });
     chart.setOption(buildMixPieOption(title, series, total, unit), true);
+    chart.on("legendselectchanged", ({ selected }) => {
+      updateMixPieCenter(chart, series, total, unit, selected);
+    });
     state.energyCharts.push(chart);
   });
 }
