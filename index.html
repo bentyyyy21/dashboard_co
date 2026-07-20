@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="styles.css" />
     <script defer src="assets/echarts.min.js"></script>
     <script defer src="data/dashboard-data.js"></script>
+    <script defer src="data/energy-mix-data.js"></script>
     <script defer src="app.js"></script>
   </head>
   <body>
@@ -23,7 +24,8 @@
           </div>
         </div>
         <nav class="module-nav" aria-label="模块导航">
-          <a class="active" href="#metricsSection" data-section="metricsSection">指标概览</a>
+          <a class="active" href="#energyMixSection" data-section="energyMixSection">电源结构</a>
+          <a href="#metricsSection" data-section="metricsSection">指标概览</a>
           <a href="#fieldsSection" data-section="fieldsSection">边界条件</a>
           <a href="#dashboardSection" data-section="dashboardSection">省份看板</a>
         </nav>
@@ -48,6 +50,17 @@
             <button id="resetButton" type="button">全量</button>
           </div>
         </div>
+      </section>
+
+      <section class="energy-mix-panel" id="energyMixSection" aria-label="各省装机与发电量结构">
+        <div class="section-heading">
+          <div>
+            <strong>装机结构与发电量构成</strong>
+            <span>按当前省份展示电源装机与年度发电量占比。</span>
+          </div>
+          <div class="mix-meta" id="energyMixMeta"></div>
+        </div>
+        <div class="mix-grid" id="energyMixGrid"></div>
       </section>
 
       <section class="metrics" id="metricsSection"></section>

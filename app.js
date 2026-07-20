@@ -1,16 +1,19 @@
 const state = {
   data: null,
+  energyMixData: null,
   selectedProvinces: [],
   startDate: "",
   endDate: "",
   enabledFields: new Set(),
-  charts: [],
+  boardCharts: [],
+  energyCharts: [],
 };
 
 const palette = {
   primaryBar: "#8bd076",
   compareBars: ["#68a7dc", "#9bd26e", "#f4ba63", "#e78383"],
   stack: ["#6ea8dc", "#f4ba63", "#79c6c2", "#b68fd8", "#f28c8f", "#9bb565", "#d3a15f"],
+  pies: ["#dd4b5a", "#4b8fd8", "#79c6c2", "#f4ba63", "#88c66a", "#8d7bd6", "#9aa8ba"],
   line: "#5b7fcf",
   lineAlt: "#d86666",
 };
@@ -22,6 +25,8 @@ const el = {
   endDate: document.getElementById("endDate"),
   todayButton: document.getElementById("todayButton"),
   resetButton: document.getElementById("resetButton"),
+  energyMixMeta: document.getElementById("energyMixMeta"),
+  energyMixGrid: document.getElementById("energyMixGrid"),
   metrics: document.getElementById("metricsSection"),
   moduleLinks: Array.from(document.querySelectorAll(".module-nav a")),
   fieldGrid: document.getElementById("fieldGrid"),
@@ -71,6 +76,10 @@ function peakValley(values) {
   const valid = values.filter((value) => Number.isFinite(Number(value))).map(Number);
   if (!valid.length) return null;
   return Math.max(...valid) - Math.min(...valid);
+}
+
+function sumSeries(series) {
+  return series.reduce((sum, item) => sum + (Number.isFinite(Number(item.value)) ? Number(item.value) : 0), 0);
 }
 
 function sumFields(record, fields, mode) {
@@ -217,7 +226,7 @@ function bindEvents() {
   }
 
   window.addEventListener("resize", () => {
-    state.charts.forEach((chart) => chart.resize());
+    [...state.energyCharts, ...state.boardCharts].forEach((chart) => chart.resize());
   });
 }
 
@@ -271,6 +280,107 @@ function renderFields() {
       renderBoards();
       renderMetrics();
     });
+  });
+}
+
+function buildMixPieOption(title, series, total, unit) {
+  const fallbackTotal = sumSeries(series);
+  const displayTotal = total || fallbackTotal;
+  return {
+    animation: true,
+    color: palette.pies,
+    tooltip: {
+      trigger: "item",
+      formatter: ({ name, value, percent }) => `${name}<br/>${fmtNumber(value)} ${unit}<br/>占比 ${fmtNumber(percent, 1)}%`,
+    },
+    legend: {
+      type: "scroll",
+      orient: "vertical",
+      right: 4,
+      top: "middle",
+      itemWidth: 10,
+      itemHeight: 10,
+      textStyle: { color: "#536176", fontSize: 11 },
+    },
+    title: {
+      text: fmtNumber(displayTotal, 0),
+      subtext: unit,
+      left: "29%",
+      top: "42%",
+      textAlign: "center",
+      textStyle: { color: "#17385c", fontSize: 22, fontWeight: 800 },
+      subtextStyle: { color: "#728196", fontSize: 11 },
+    },
+    series: [
+      {
+        name: title,
+        type: "pie",
+        radius: ["48%", "72%"],
+        center: ["30%", "50%"],
+        avoidLabelOverlap: true,
+        itemStyle: {
+          borderColor: "#fff",
+          borderWidth: 2,
+          borderRadius: 5,
+        },
+        label: {
+          color: "#344156",
+          formatter: "{b}\n{d}%",
+          fontSize: 11,
+        },
+        labelLine: {
+          length: 9,
+          length2: 6,
+          lineStyle: { color: "#9fb1c4" },
+        },
+        data: series,
+      },
+    ],
+  };
+}
+
+function renderEnergyMix() {
+  state.energyCharts.forEach((chart) => chart.dispose());
+  state.energyCharts = [];
+  if (!el.energyMixGrid) return;
+
+  const provinceName = state.selectedProvinces[0];
+  const mix = state.energyMixData?.provinces?.[provinceName];
+  if (!mix) {
+    el.energyMixMeta.textContent = "";
+    el.energyMixGrid.innerHTML = `<div class="mix-empty">暂无 ${provinceName || "当前省份"} 的装机与发电量数据。</div>`;
+    return;
+  }
+
+  const capacityUnit = state.energyMixData.units?.capacity || "万千瓦";
+  const generationUnit = state.energyMixData.units?.generation || "亿千瓦时";
+  el.energyMixMeta.textContent = `${mix.region || ""} · ${mix.name}`;
+  el.energyMixGrid.innerHTML = `
+    <article class="mix-card">
+      <div class="mix-card-head">
+        <h2>装机结构</h2>
+        <span class="mix-total">总计 ${fmtNumber(mix.capacityTotal, 0)} ${capacityUnit}</span>
+      </div>
+      <div class="mix-chart" id="capacityMixChart"></div>
+    </article>
+    <article class="mix-card">
+      <div class="mix-card-head">
+        <h2>发电量构成</h2>
+        <span class="mix-total">总计 ${fmtNumber(mix.generationTotal, 0)} ${generationUnit}</span>
+      </div>
+      <div class="mix-chart" id="generationMixChart"></div>
+    </article>
+  `;
+
+  [
+    ["capacityMixChart", "装机结构", mix.capacity, mix.capacityTotal, capacityUnit],
+    ["generationMixChart", "发电量构成", mix.generation, mix.generationTotal, generationUnit],
+  ].forEach(([id, title, series, total, unit]) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+    const chart = echarts.init(target, null, { renderer: "canvas" });
+    chart.setOption(buildMixPieOption(title, series, total, unit), true);
+    state.energyCharts.push(chart);
   });
 }
 
@@ -527,8 +637,8 @@ function renderTable(provinceName, mode, records) {
 }
 
 function renderBoards() {
-  state.charts.forEach((chart) => chart.dispose());
-  state.charts = [];
+  state.boardCharts.forEach((chart) => chart.dispose());
+  state.boardCharts = [];
   const boards = state.selectedProvinces
     .map((provinceName) => {
       const records = getProvinceRecords(provinceName);
@@ -582,20 +692,21 @@ function renderBoards() {
     if (compareTarget) {
       const chart = echarts.init(compareTarget, null, { renderer: "canvas" });
       chart.setOption(buildCompareChartOption(provinceName, records), true);
-      state.charts.push(chart);
+      state.boardCharts.push(chart);
     }
     ["day", "realtime"].forEach((mode) => {
       const target = document.getElementById(`chart-${provinceName}-${mode}`);
       if (!target) return;
       const chart = echarts.init(target, null, { renderer: "canvas" });
       chart.setOption(buildChartOption(provinceName, mode, records), true);
-      state.charts.push(chart);
+      state.boardCharts.push(chart);
     });
   });
 }
 
 function render() {
   renderFields();
+  renderEnergyMix();
   renderMetrics();
   renderBoards();
 }
@@ -608,6 +719,12 @@ async function main() {
       const response = await fetch("data/dashboard-data.json", { cache: "no-store" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       state.data = await response.json();
+    }
+    if (window.ENERGY_MIX_DATA) {
+      state.energyMixData = window.ENERGY_MIX_DATA;
+    } else {
+      const energyResponse = await fetch("data/energy-mix-data.json", { cache: "no-store" });
+      state.energyMixData = energyResponse.ok ? await energyResponse.json() : null;
     }
     if (!window.echarts) {
       throw new Error("图表库未加载成功，请刷新页面或检查 assets/echarts.min.js");
