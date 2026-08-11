@@ -52,6 +52,13 @@ function fmtNumber(value, digits = 2) {
   });
 }
 
+function displayFieldValue(field, value) {
+  if (value === null || value === undefined) return value;
+  const numericValue = Number(value);
+  if (field.includes("竞价空间") && Number.isFinite(numericValue) && numericValue < 0) return 0;
+  return value;
+}
+
 function average(values) {
   const valid = values.filter((value) => Number.isFinite(Number(value))).map(Number);
   if (!valid.length) return null;
@@ -498,7 +505,7 @@ function addCompareBar(series, provinceName, cfg, role, name, dataKey, records, 
   series.push({
     name,
     type: "bar",
-    data: records.map((record) => record.values[dataKey] ?? null),
+    data: records.map((record) => displayFieldValue(field, record.values[dataKey] ?? null)),
     itemStyle: { color },
     barMaxWidth: 14,
   });
@@ -589,7 +596,7 @@ function buildChartOption(provinceName, mode, records) {
     series.push({
       name: cfg.barPrimary,
       type: "bar",
-      data: records.map((record) => record.values[`${mode}.barPrimary`] ?? null),
+      data: records.map((record) => displayFieldValue(cfg.barPrimary, record.values[`${mode}.barPrimary`] ?? null)),
       itemStyle: { color: palette.primaryBar },
       barMaxWidth: 12,
     });
@@ -601,7 +608,7 @@ function buildChartOption(provinceName, mode, records) {
       name: field,
       type: "bar",
       stack: `${mode}-stack`,
-      data: records.map((record) => record.values[`${mode}.stack.${field}`] ?? null),
+      data: records.map((record) => displayFieldValue(field, record.values[`${mode}.stack.${field}`] ?? null)),
       itemStyle: { color: palette.stack[index % palette.stack.length] },
       barMaxWidth: 12,
     });
@@ -693,7 +700,7 @@ function renderTable(provinceName, mode, records) {
                 <tr>
                   <td>${record.date}</td>
                   <td>${record.time}</td>
-                  ${fields.map(([, key]) => `<td>${fmtNumber(record.values[key])}</td>`).join("")}
+                  ${fields.map(([label, key]) => `<td>${fmtNumber(displayFieldValue(label, record.values[key]))}</td>`).join("")}
                 </tr>
               `)
               .join("")}

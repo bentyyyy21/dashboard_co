@@ -190,19 +190,21 @@ def detect_header(ws: Any) -> tuple[int, list[str], list[str]]:
 
 
 def choose_column(field: str, columns: list[dict[str, Any]], mode: str) -> int | None:
-    candidates = (field, *FIELD_ALIASES.get(field, ()))
-    exact = [column for column in columns if column["field"] in candidates]
-    if not exact:
+    matched = [column for column in columns if column["field"] == field]
+    if not matched:
+        aliases = FIELD_ALIASES.get(field, ())
+        matched = [column for column in columns if column["field"] in aliases]
+    if not matched:
         return None
     hints = SECTION_HINTS.get(mode, ())
-    hinted = [column for column in exact if any(hint in column["section"] for hint in hints)]
+    hinted = [column for column in matched if any(hint in column["section"] for hint in hints)]
     if hinted:
         return hinted[0]["index"]
     if mode == "day":
-        return exact[0]["index"]
+        return matched[0]["index"]
     if mode == "realtime":
-        return exact[-1]["index"]
-    return exact[0]["index"]
+        return matched[-1]["index"]
+    return matched[0]["index"]
 
 
 def iter_long_price_records(path: Path, columns: list[dict[str, Any]], header_row: int, province_config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
@@ -348,7 +350,7 @@ def build_dataset() -> dict[str, Any]:
         if province not in mapping:
             continue
         records_by_time: dict[tuple[str, str], dict[str, Any]] = {}
-        files = sorted(province_dir.glob("*.xlsx"))
+        files = sorted(path for path in province_dir.glob("*.xlsx") if not path.name.startswith("~$"))
         for workbook_path in files:
             workbook_records, warnings = iter_workbook_records(workbook_path, mapping[province])
             for record in workbook_records:
