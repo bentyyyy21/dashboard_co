@@ -39,6 +39,12 @@ FIELD_ALIASES = {
     "实时平均出清价格": ("平均出清价格",),
     "日前火电竞价空间": ("日前竞价空间",),
     "日内火电竞价空间": ("日内竞价空间",),
+    "日前统调负荷": ("省调负荷",),
+    "实时省调负荷": ("省调负荷",),
+    "日前竞价空间": ("竞价空间",),
+    "实时竞价空间": ("竞价空间",),
+    "日前统一出清价格（调控后）": ("统一出清价格（调控后）",),
+    "实时统一出清价格（调控后）": ("统一出清价格（调控后）",),
 }
 
 
@@ -173,7 +179,7 @@ def detect_header(ws: Any) -> tuple[int, list[str], list[str]]:
     best_row = 1
     best_score = -1
     best_values: list[str] = []
-    section_labels = {"日前边界数据", "实时边界数据", "分区价格", "日前", "实时"}
+    section_labels = {"日前边界数据", "实时边界数据", "日前数据", "实时数据", "分区价格", "日前", "实时"}
     for row_index, row in enumerate(ws.iter_rows(min_row=1, max_row=min(ws.max_row, 8), values_only=True), start=1):
         values = [clean_text(value) for value in row]
         score = int("日期" in values) + int("时刻" in values) + sum(1 for value in values if value and value not in section_labels)

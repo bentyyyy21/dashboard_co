@@ -131,6 +131,12 @@ function allDates() {
     .sort();
 }
 
+function selectedProvinceDates() {
+  return state.selectedProvinces
+    .flatMap((provinceName) => state.data.provinces[provinceName]?.dates || [])
+    .sort();
+}
+
 function energyYears() {
   return Object.keys(state.energyMixData?.years || {}).sort();
 }
@@ -144,6 +150,20 @@ function latestMonthFirstDate(dates) {
   if (!lastDate) return "";
   const latestMonth = lastDate.slice(0, 7);
   return dates.find((date) => date.startsWith(latestMonth)) || lastDate;
+}
+
+function syncDateRangeToSelectedProvinces() {
+  const dates = selectedProvinceDates();
+  const hasMatchingDate = dates.some(
+    (date) => (!state.startDate || date >= state.startDate) && (!state.endDate || date <= state.endDate)
+  );
+  if (!dates.length || hasMatchingDate) return;
+
+  const defaultDate = latestMonthFirstDate(dates);
+  state.startDate = defaultDate;
+  state.endDate = defaultDate;
+  el.startDate.value = defaultDate;
+  el.endDate.value = defaultDate;
 }
 
 function initControls() {
@@ -198,6 +218,7 @@ function initControls() {
 function bindEvents() {
   el.provinceSelect.addEventListener("change", () => {
     state.selectedProvinces = el.provinceSelect.value ? [el.provinceSelect.value] : [];
+    syncDateRangeToSelectedProvinces();
     render();
   });
 
@@ -237,7 +258,7 @@ function bindEvents() {
   });
 
   el.todayButton.addEventListener("click", () => {
-    const dates = allDates();
+    const dates = selectedProvinceDates();
     const lastDate = dates[dates.length - 1] || "";
     state.startDate = lastDate;
     state.endDate = lastDate;
@@ -247,7 +268,7 @@ function bindEvents() {
   });
 
   el.resetButton.addEventListener("click", () => {
-    const dates = allDates();
+    const dates = selectedProvinceDates();
     state.startDate = dates[0] || "";
     state.endDate = dates[dates.length - 1] || "";
     el.startDate.value = state.startDate;
