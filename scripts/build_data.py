@@ -15,6 +15,7 @@ MAPPING_FILE = ROOT / "映射表字段.xlsx"
 DATA_DIR = ROOT / "data"
 OUTPUT_FILE = DATA_DIR / "dashboard-data.json"
 OUTPUT_JS_FILE = DATA_DIR / "dashboard-data.js"
+PROVINCE_DATA_DIR = DATA_DIR / "provinces"
 
 GROUP_LABELS = {
     "日前柱状图": "day_bar",
@@ -45,6 +46,15 @@ FIELD_ALIASES = {
     "实时竞价空间": ("竞价空间",),
     "日前统一出清价格（调控后）": ("统一出清价格（调控后）",),
     "实时统一出清价格（调控后）": ("统一出清价格（调控后）",),
+    "日前系统负荷": ("系统负荷",),
+    "实时系统负荷": ("系统负荷",),
+    "日前出清价格": ("统一出清价格-日前",),
+    "实时出清价格": ("统一出清价格-实时",),
+    "实时光伏出力": ("光伏出力",),
+    "实时风电出力": ("风电出力",),
+    "实时区外受电计划": ("区外受电计划",),
+    "实时非市场化机组出力": ("非市场化机组出力",),
+    "非市场化机组出力": ("实时非市场化机组出力",),
 }
 
 
@@ -276,7 +286,7 @@ def iter_wide_datetime_price_records(path: Path, columns: list[dict[str, Any]], 
     return records, []
 
 
-def iter_workbook_records(path: Path, province_config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+def iter_workbook_records(path: Path, province: str, province_config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
     workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
     ws = workbook[workbook.sheetnames[0]]
     header_row, headers, sections = detect_header(ws)
@@ -327,11 +337,31 @@ def iter_workbook_records(path: Path, province_config: dict[str, Any]) -> tuple[
     for key, meta in required_fields.items():
         field = meta["field"]
         value_type = meta["type"]
-        index = choose_column(field, columns, value_type)
+        lookup_field = (
+            "实时非市场化机组出力"
+            if province == "冀南" and field == "非市场化机组出力" and value_type == "realtime"
+            else field
+        )
+        index = choose_column(lookup_field, columns, value_type)
         if index is None:
             warnings.append(f"{path.name}: 字段缺失，已按 0 填充 - {field}")
         else:
             column_map[key] = index
+
+    competition_components = {} if province != "冀南" else {
+        "日前火电竞价空间": [
+            choose_column("系统负荷", columns, "day"),
+            choose_column("新能源出力", columns, "day"),
+            choose_column("区外受电计划", columns, "day"),
+            choose_column("非市场化机组出力", columns, "day"),
+        ],
+        "实时火电竞价空间": [
+            choose_column("系统负荷", columns, "realtime"),
+            choose_column("新能源出力", columns, "realtime"),
+            choose_column("实时区外受电计划", columns, "realtime"),
+            choose_column("实时非市场化机组出力", columns, "realtime"),
+        ],
+    }
 
     records: list[dict[str, Any]] = []
     for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
@@ -343,6 +373,16 @@ def iter_workbook_records(path: Path, province_config: dict[str, Any]) -> tuple[
         for key in required_fields:
             index = column_map.get(key)
             values[key] = 0 if index is None else json_value(row[index] if index < len(row) else None)
+        for field, component_indexes in competition_components.items():
+            if any(index is None for index in component_indexes):
+                continue
+            component_values = [row[index] if index < len(row) else None for index in component_indexes]
+            if not all(isinstance(value, (int, float)) for value in component_values):
+                continue
+            calculated = json_value(component_values[0] - sum(component_values[1:]))
+            for key, meta in required_fields.items():
+                if meta["field"] == field:
+                    values[key] = calculated
         records.append({"date": row_date, "time": row_time, "values": values})
     return records, warnings
 
@@ -358,7 +398,7 @@ def build_dataset() -> dict[str, Any]:
         records_by_time: dict[tuple[str, str], dict[str, Any]] = {}
         files = sorted(path for path in province_dir.glob("*.xlsx") if not path.name.startswith("~$"))
         for workbook_path in files:
-            workbook_records, warnings = iter_workbook_records(workbook_path, mapping[province])
+            workbook_records, warnings = iter_workbook_records(workbook_path, province, mapping[province])
             for record in workbook_records:
                 key = (record["date"], record["time"])
                 target = records_by_time.setdefault(key, {"date": record["date"], "time": record["time"], "values": {}})
@@ -391,12 +431,33 @@ def build_dataset() -> dict[str, Any]:
 
 def main() -> None:
     DATA_DIR.mkdir(exist_ok=True)
+    PROVINCE_DATA_DIR.mkdir(exist_ok=True)
     payload = build_dataset()
-    json_text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-    OUTPUT_FILE.write_text(json_text, encoding="utf-8")
-    OUTPUT_JS_FILE.write_text(f"window.DASHBOARD_DATA={json_text};\n", encoding="utf-8")
     count = sum(len(item["records"]) for item in payload["provinces"].values())
-    print(f"wrote {OUTPUT_FILE.relative_to(ROOT)} and {OUTPUT_JS_FILE.relative_to(ROOT)} with {len(payload['provinces'])} provinces and {count} records")
+
+    for stale_file in PROVINCE_DATA_DIR.glob("*.json"):
+        stale_file.unlink()
+    for stale_file in PROVINCE_DATA_DIR.glob("*.js"):
+        stale_file.unlink()
+
+    base_payload = {**payload, "provinces": {}}
+    base_json_text = json.dumps(base_payload, ensure_ascii=False, separators=(",", ":"))
+    OUTPUT_FILE.write_text(base_json_text, encoding="utf-8")
+    OUTPUT_JS_FILE.write_text(f"window.DASHBOARD_DATA={base_json_text};\n", encoding="utf-8")
+
+    for province, province_payload in payload["provinces"].items():
+        province_json_text = json.dumps(province_payload, ensure_ascii=False, separators=(",", ":"))
+        (PROVINCE_DATA_DIR / f"{province}.json").write_text(province_json_text, encoding="utf-8")
+        province_assignment = (
+            "window.DASHBOARD_DATA=window.DASHBOARD_DATA||{generatedAt:'',source:{},warnings:[],provinces:{}};"
+            f"window.DASHBOARD_DATA.provinces[{json.dumps(province, ensure_ascii=False)}]={province_json_text};\n"
+        )
+        (PROVINCE_DATA_DIR / f"{province}.js").write_text(province_assignment, encoding="utf-8")
+
+    print(
+        f"wrote split dashboard data with {len(payload['provinces'])} provinces and {count} records "
+        f"under {PROVINCE_DATA_DIR.relative_to(ROOT)}"
+    )
     if payload["warnings"]:
         print("warnings:")
         for warning in payload["warnings"]:

@@ -1,6 +1,6 @@
 # 各省边界数据看板
 
-这是一个可直接部署到 GitHub Pages 的静态网页看板。页面优先读取 `data/dashboard-data.js`，也保留 `data/dashboard-data.json` 作为结构化数据，支持多省选择、单日或多日日期筛选，并按映射表维护日前/实时的柱线组合图字段。
+这是一个可直接部署到 GitHub Pages 的静态网页看板。页面先读取 `data/dashboard-data.js`，再加载 `data/provinces/` 下的各省独立数据文件；同目录也保留对应 JSON 作为结构化数据。看板支持省份选择、单日或多日日期筛选，并按映射表维护日前/实时的柱线组合图字段。
 
 ## 本地更新数据
 
@@ -16,7 +16,7 @@
 python scripts/build_data.py
 ```
 
-4. 提交并推送 `index.html`、`styles.css`、`app.js`、`data/dashboard-data.json`、`data/dashboard-data.js`、`scripts/build_data.py`。源 Excel 会被 `.gitignore` 忽略，不上传到 GitHub。
+4. 提交并推送 `index.html`、`styles.css`、`app.js`、`data/dashboard-data.*`、`data/provinces/`、`scripts/build_data.py`。源 Excel 会被 `.gitignore` 忽略，不上传到 GitHub。
 
 本地预览可以直接打开 `index.html`。如果使用本地静态服务或 GitHub Pages，也会正常读取同一份生成数据。
 
