@@ -344,7 +344,9 @@ def iter_workbook_records(path: Path, province: str, province_config: dict[str, 
         )
         index = choose_column(lookup_field, columns, value_type)
         if index is None:
-            warnings.append(f"{path.name}: 字段缺失，已按 0 填充 - {field}")
+            is_derived_competition = province == "冀南" and field in {"日前火电竞价空间", "实时火电竞价空间"}
+            if not is_derived_competition:
+                warnings.append(f"{path.name}: 字段缺失，已按 0 填充 - {field}")
         else:
             column_map[key] = index
 
