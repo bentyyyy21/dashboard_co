@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import math
 import re
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -286,7 +286,96 @@ def iter_wide_datetime_price_records(path: Path, columns: list[dict[str, Any]], 
     return records, []
 
 
+def iter_hubei_combined_records(path: Path, province_config: dict[str, Any]) -> list[dict[str, Any]]:
+    workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    if not {"日前", "实时"}.issubset(workbook.sheetnames):
+        return []
+
+    records_by_time: dict[tuple[str, str], dict[str, Any]] = {}
+    mode_config = {
+        "日前": {
+            "mode": "day",
+            "suffix": "DAY_AHEAD",
+            "renewable_fields": ("NEW_ENERGY_WIND_POWER", "NEW_ENERGY_PHOTOVOLTAIC_POWER"),
+        },
+        "实时": {
+            "mode": "realtime",
+            "suffix": "REAL_TIME",
+            "renewable_fields": ("NEW_ENERGY_WIND_POWER", "NEW_ENERGY_PHOTOVOLTAIC_POWER"),
+            "renewable_fallback": ("NEW_ENERGY_WIND_ENERGY", "NEW_ENERGY_PHOTOVOLTAIC_ENERGY"),
+        },
+    }
+
+    for sheet_name, sheet_config in mode_config.items():
+        ws = workbook[sheet_name]
+        headers = [clean_text(value) for value in next(ws.iter_rows(min_row=1, max_row=1, values_only=True))]
+        column_by_field = {field: index for index, field in enumerate(headers) if field}
+        datetime_col = column_by_field.get("datetime")
+        if datetime_col is None:
+            continue
+
+        mode = sheet_config["mode"]
+        suffix = sheet_config["suffix"]
+
+        def source_column(base_field: str) -> int | None:
+            return column_by_field.get(f"{base_field}_{suffix}")
+
+        def row_value(row: tuple[Any, ...], base_field: str) -> Any:
+            index = source_column(base_field)
+            value = json_value(row[index] if index is not None and index < len(row) else None)
+            return None if value == "" else value
+
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            row_date, row_time = normalize_datetime_parts(row[datetime_col] if datetime_col < len(row) else None)
+            if not row_date or not row_time:
+                continue
+            if row_time == "00:00":
+                row_date = (datetime.strptime(row_date, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+                row_time = "24:00"
+
+            system_load = row_value(row, "SYSTEM_LOAD_POWER")
+            renewable_values = [row_value(row, field) for field in sheet_config["renewable_fields"]]
+            if not any(isinstance(value, (int, float)) for value in renewable_values):
+                renewable_values = [row_value(row, field) for field in sheet_config.get("renewable_fallback", ())]
+            renewable_values = [value for value in renewable_values if isinstance(value, (int, float))]
+            renewable_total = json_value(sum(renewable_values)) if renewable_values else None
+            intertie = row_value(row, "CALL_WIRE_POWER")
+            non_market = row_value(row, "NON_MARKET_UNIT_POWER")
+            competition = None
+            if all(isinstance(value, (int, float)) for value in (system_load, renewable_total, intertie, non_market)):
+                competition = json_value(system_load - renewable_total - intertie - non_market)
+
+            values: dict[str, Any] = {
+                f"{mode}.barPrimary": system_load,
+                f"{mode}.line": row_value(row, "AVG_CLEARING_PRICE"),
+                f"compare.{mode}BarPrimary": system_load,
+                f"compare.{mode}BarSecondary": competition,
+                f"compare.{mode}Line": row_value(row, "AVG_CLEARING_PRICE"),
+            }
+            stack_sources = {
+                "火电竞价空间": competition,
+                "新能源负荷-总加": renewable_total,
+                "新能源负荷-风电": row_value(row, "NEW_ENERGY_WIND_POWER"),
+                "新能源负荷-光伏": row_value(row, "NEW_ENERGY_PHOTOVOLTAIC_POWER"),
+                "联络线计划": intertie,
+                "非市场化机组总出力": non_market,
+            }
+            for field in province_config[mode]["stackBars"]:
+                values[f"{mode}.stack.{field}"] = stack_sources.get(field)
+
+            key = (row_date, row_time)
+            target = records_by_time.setdefault(key, {"date": row_date, "time": row_time, "values": {}})
+            target["values"].update(values)
+
+    return list(records_by_time.values())
+
+
 def iter_workbook_records(path: Path, province: str, province_config: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+    if province == "湖北":
+        hubei_records = iter_hubei_combined_records(path, province_config)
+        if hubei_records:
+            return hubei_records, []
+
     workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
     ws = workbook[workbook.sheetnames[0]]
     header_row, headers, sections = detect_header(ws)
